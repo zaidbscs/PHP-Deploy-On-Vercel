@@ -59,7 +59,7 @@ if ($supabaseUrl && $supabaseKey) {
         "Authorization: Bearer $supabaseKey"
     ]);
     $response = curl_exec($ch);
-    curl_close($ch);
+    curl_close();
     $notes = json_decode($response, true) ?? [];
 }
 
