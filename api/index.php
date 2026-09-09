@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 "Prefer: return=minimal"
             ]);
             curl_exec($ch);
-           curl_close();
+          
         }
     } elseif ($action === 'delete_note') {
         $idToDelete = $_POST['note_id'] ?? '';
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 "Authorization: Bearer $supabaseKey"
             ]);
             curl_exec($ch);
-            curl_close();
+            
         }
     }
 
