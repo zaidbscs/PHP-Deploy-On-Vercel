@@ -1,9 +1,7 @@
 <?php
 session_start();
 
-$result = null;
-$error = null;
-
+// Handle Form Submission via POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
@@ -13,35 +11,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $operator = $_POST['operator'] ?? 'add';
 
         if ($num1 === false || $num2 === false) {
-            $error = "Please enter valid numeric values.";
+            $_SESSION['error'] = "Please enter valid numeric values.";
         } else {
+            $result = null;
+            $symbol = '';
             switch ($operator) {
-                case 'add':
-                    $result = $num1 + $num2;
-                    $symbol = '+';
-                    break;
-                case 'sub':
-                    $result = $num1 - $num2;
-                    $symbol = '-';
-                    break;
-                case 'mul':
-                    $result = $num1 * $num2;
-                    $symbol = '×';
-                    break;
+                case 'add': $result = $num1 + $num2; $symbol = '+'; break;
+                case 'sub': $result = $num1 - $num2; $symbol = '-'; break;
+                case 'mul': $result = $num1 * $num2; $symbol = '×'; break;
                 case 'div':
                     if ($num2 == 0) {
-                        $error = "Division by zero is not allowed.";
+                        $_SESSION['error'] = "Division by zero is not allowed.";
                     } else {
                         $result = $num1 / $num2;
                         $symbol = '÷';
                     }
                     break;
                 default:
-                    $error = "Invalid mathematical operator.";
+                    $_SESSION['error'] = "Invalid mathematical operator.";
             }
 
             if ($result !== null) {
                 $expression = "$num1 $symbol $num2 = $result";
+                $_SESSION['last_result'] = $result;
                 if (!isset($_SESSION['calc_history'])) {
                     $_SESSION['calc_history'] = [];
                 }
@@ -52,13 +44,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif ($action === 'clear') {
-        unset($_SESSION['calc_history']);
-        header("Location: /");
-        exit;
+        unset($_SESSION['calc_history'], $_SESSION['last_result'], $_SESSION['error']);
     }
+
+    // Redirect to prevent form re-submission on reload (PRG Pattern)
+    header("Location: /");
+    exit;
 }
 
+// Retrieve flash messages / state for the GET request view
+$error = $_SESSION['error'] ?? null;
+$result = $_SESSION['last_result'] ?? null;
 $history = $_SESSION['calc_history'] ?? [];
+
+// Clear flash error/result after displaying them once
+unset($_SESSION['error'], $_SESSION['last_result']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
