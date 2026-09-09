@@ -1,120 +1,110 @@
 <?php
 session_start();
 
-// Handle Form Submission via POST
+// Handle Form Actions via POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    if ($action === 'calculate') {
-        $num1 = filter_input(INPUT_POST, 'num1', FILTER_VALIDATE_FLOAT);
-        $num2 = filter_input(INPUT_POST, 'num2', FILTER_VALIDATE_FLOAT);
-        $operator = $_POST['operator'] ?? 'add';
+    if ($action === 'add_note') {
+        $title = trim($_POST['title'] ?? '');
+        $content = trim($_POST['content'] ?? '');
 
-        if ($num1 === false || $num2 === false) {
-            $_SESSION['error'] = "Please enter valid numeric values.";
+        if ($title === '' || $content === '') {
+            $_SESSION['error'] = "Both title and content are required.";
         } else {
-            $result = null;
-            $symbol = '';
-            switch ($operator) {
-                case 'add': $result = $num1 + $num2; $symbol = '+'; break;
-                case 'sub': $result = $num1 - $num2; $symbol = '-'; break;
-                case 'mul': $result = $num1 * $num2; $symbol = '×'; break;
-                case 'div':
-                    if ($num2 == 0) {
-                        $_SESSION['error'] = "Division by zero is not allowed.";
-                    } else {
-                        $result = $num1 / $num2;
-                        $symbol = '÷';
-                    }
-                    break;
-                default:
-                    $_SESSION['error'] = "Invalid mathematical operator.";
+            if (!isset($_SESSION['notes'])) {
+                $_SESSION['notes'] = [];
             }
-
-            if ($result !== null) {
-                $expression = "$num1 $symbol $num2 = $result";
-                $_SESSION['last_result'] = $result;
-                if (!isset($_SESSION['calc_history'])) {
-                    $_SESSION['calc_history'] = [];
-                }
-                array_unshift($_SESSION['calc_history'], $expression);
-                if (count($_SESSION['calc_history']) > 5) {
-                    array_pop($_SESSION['calc_history']);
-                }
-            }
+            // Add new note to the beginning of the array
+            array_unshift($_SESSION['notes'], [
+                'id' => uniqid(),
+                'title' => htmlspecialchars($title),
+                'content' => htmlspecialchars($content),
+                'date' => date('Y-m-d H:i:s')
+            ]);
         }
-    } elseif ($action === 'clear') {
-        unset($_SESSION['calc_history'], $_SESSION['last_result'], $_SESSION['error']);
+    } elseif ($action === 'delete_note') {
+        $idToDelete = $_POST['note_id'] ?? '';
+        if (isset($_SESSION['notes'])) {
+            $_SESSION['notes'] = array_filter($_SESSION['notes'], function($note) use ($idToDelete) {
+                return $note['id'] !== $idToDelete;
+            });
+            // Re-index array
+            $_SESSION['notes'] = array_values($_SESSION['notes']);
+        }
+    } elseif ($action === 'clear_all') {
+        unset($_SESSION['notes'], $_SESSION['error']);
     }
 
-    // Redirect to prevent form re-submission on reload (PRG Pattern)
+    // PRG Pattern Redirect
     header("Location: /");
     exit;
 }
 
-// Retrieve flash messages / state for the GET request view
 $error = $_SESSION['error'] ?? null;
-$result = $_SESSION['last_result'] ?? null;
-$history = $_SESSION['calc_history'] ?? [];
-
-// Clear flash error/result after displaying them once
-unset($_SESSION['error'], $_SESSION['last_result']);
+$notes = $_SESSION['notes'] ?? [];
+unset($_SESSION['error']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Single-File PHP App on Vercel</title>
+    <title>Serverless Notes App</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; line-height: 1.6; color: #333; }
-        .card { background: #f9f9f9; border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 6px; }
+        body { font-family: sans-serif; max-width: 650px; margin: 40px auto; padding: 20px; line-height: 1.6; color: #333; background: #fdfdfd; }
+        .card { background: #fff; border: 1px solid #e1e4e8; padding: 20px; margin-bottom: 20px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .error { color: #d9534f; background: #f2dede; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-        .success { color: #3c763d; background: #dff0d8; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
-        input, select { padding: 8px; margin-right: 5px; }
-        button { padding: 8px 15px; background: #0070f3; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #005bb5; }
+        input, textarea { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 18px; background: #2ea44f; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #2c974b; }
+        .note-item { background: #f6f8fa; border: 1px solid #e1e4e8; padding: 15px; margin-bottom: 10px; border-radius: 4px; position: relative; }
+        .note-item h4 { margin: 0 0 8px 0; color: #0366d6; }
+        .note-item p { margin: 0 0 10px 0; }
+        .note-item small { color: #586069; }
+        .delete-btn { background: #d73a49; padding: 5px 10px; font-size: 12px; float: right; }
+        .delete-btn:hover { background: #cb2431; }
     </style>
 </head>
 <body>
-    <h1>Serverless Single-File PHP Engine</h1>
+    <h1>Serverless PHP Notes</h1>
 
     <?php if ($error): ?>
-        <div class="error"><?php echo htmlspecialchars($error); ?></div>
+        <div class="error"><?php echo $error; ?></div>
     <?php endif; ?>
 
-    <?php if ($result !== null): ?>
-        <div class="success">Result: <strong><?php echo htmlspecialchars($result); ?></strong></div>
-    <?php endif; ?>
-
+    <!-- Add Note Form -->
     <div class="card">
-        <h3>Calculator Form</h3>
+        <h3>Create a New Note</h3>
         <form method="POST" action="/">
-            <input type="hidden" name="action" value="calculate">
-            <input type="number" name="num1" placeholder="Num 1" required style="width: 30%;">
-            <select name="operator">
-                <option value="add">+</option>
-                <option value="sub">-</option>
-                <option value="mul">×</option>
-                <option value="div">÷</option>
-            </select>
-            <input type="number" name="num2" placeholder="Num 2" required style="width: 30%;">
-            <button type="submit">Calculate</button>
+            <input type="hidden" name="action" value="add_note">
+            <input type="text" name="title" placeholder="Note Title..." required>
+            <textarea name="content" placeholder="Write your note content here..." rows="3" required></textarea>
+            <button type="submit">Save Note</button>
         </form>
     </div>
 
+    <!-- Notes List -->
     <div class="card">
-        <h3>Session Calculation History</h3>
-        <?php if (empty($history)): ?>
-            <p>No history items found.</p>
+        <h3>Your Saved Notes (<?php echo count($notes); ?>)</h3>
+        <?php if (empty($notes)): ?>
+            <p>No notes created yet. Add one above!</p>
         <?php else: ?>
-            <ul>
-                <?php foreach ($history as $item): ?>
-                    <li><?php echo htmlspecialchars($item); ?></li>
-                <?php endforeach; ?>
-            </ul>
+            <?php foreach ($notes as $note): ?>
+                <div class="note-item">
+                    <form method="POST" action="/" style="display:inline;">
+                        <input type="hidden" name="action" value="delete_note">
+                        <input type="hidden" name="note_id" value="<?php echo $note['id']; ?>">
+                        <button type="submit" class="delete-btn">Delete</button>
+                    </form>
+                    <h4><?php echo $note['title']; ?></h4>
+                    <p><?php echo nl2br($note['content']); ?></p>
+                    <small>Created at: <?php echo $note['date']; ?></small>
+                </div>
+            <?php endforeach; ?>
+            <br>
             <form method="POST" action="/">
-                <input type="hidden" name="action" value="clear">
-                <button type="submit" style="background: #d9534f;">Clear History</button>
+                <input type="hidden" name="action" value="clear_all">
+                <button type="submit" style="background: #d73a49; width: 100%;">Clear All Notes</button>
             </form>
         <?php endif; ?>
     </div>
