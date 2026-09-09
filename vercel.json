@@ -6,7 +6,15 @@
   },
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "/about",
+      "dest": "/api/about.php"
+    },
+    {
+      "src": "/task",
+      "dest": "/api/task.php"
+    },
+    {
+      "src": "/",
       "dest": "/api/index.php"
     }
   ]
