@@ -6,12 +6,12 @@
   },
   "routes": [
     {
-      "src": "/about",
-      "dest": "/api/about.php"
+      "src": "/calculate",
+      "dest": "/api/calculate.php"
     },
     {
-      "src": "/task",
-      "dest": "/api/task.php"
+      "src": "/process",
+      "dest": "/api/process.php"
     },
     {
       "src": "/",
